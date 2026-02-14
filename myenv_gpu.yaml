@@ -8,6 +8,7 @@ channels:
 dependencies:
   - python
   - pip
+  - setuptools
 
   - numpy
   - pandas
@@ -17,10 +18,17 @@ dependencies:
   - pytorch
   - torchvision
   - torchaudio
-  - pytorch-cuda
+  - pytorch-cuda 
+  - tokenizers
 
   - matplotlib
   - seaborn
+
+  - jupyterlab
+  - ipywidgets
+
+  - ftfy
+  - regex
 
   - jupyterlab
   - ipywidgets

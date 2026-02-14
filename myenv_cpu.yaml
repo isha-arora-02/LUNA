@@ -1,5 +1,6 @@
 name: luna
 
+
 channels:
   - pytorch
   - conda-forge
@@ -8,6 +9,7 @@ channels:
 dependencies:
   - python
   - pip
+  - setuptools
 
   - numpy
   - pandas
@@ -18,12 +20,16 @@ dependencies:
   - torchvision
   - torchaudio
   - cpuonly
+  - tokenizers
 
   - matplotlib
   - seaborn
 
   - jupyterlab
   - ipywidgets
+
+  - ftfy
+  - regex
 
   - pip:
     # Hugging Face 
