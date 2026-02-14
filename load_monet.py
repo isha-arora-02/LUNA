@@ -1,5 +1,6 @@
 from transformers import AutoProcessor, AutoModelForZeroShotImageClassification
 import torch
+import torch.nn.functional as F
 
 processor = AutoProcessor.from_pretrained("suinleelab/monet")
 model = AutoModelForZeroShotImageClassification.from_pretrained("suinleelab/monet")
@@ -14,6 +15,9 @@ for param in model.parameters():
 
 # set in eval mode
 model.eval()
+
+def create_dataloader():
+    pass
 
 def get_img_embeddings(images: list, device='cpu'):
     """
@@ -31,6 +35,9 @@ def get_img_embeddings(images: list, device='cpu'):
 
     with torch.no_grad():
         embeddings_tmp = model(**processed_imgs)
+    
+    embeddings = embeddings_tmp.pooler_output
+    embeddings = F.normalize(embeddings, dim=1)
 
     
 
