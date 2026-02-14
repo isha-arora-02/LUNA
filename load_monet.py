@@ -40,20 +40,44 @@ def get_img_embeddings(images: list, device='cpu'):
     embeddings = embeddings_tmp.pooler_output
     embeddings = F.normalize(embeddings, dim=1)
 
-# does the deseq?
+# does the deseq? -- nope add as separate fn
 class transcriptomics_encoder(nn.Module):
-    def __init__(self, input_len=20000, first_layer_dim=768, out_dim=128):
+    def __init__(self, first_layer_dim=768, out_dim=512):
         super(transcriptomics_encoder, self).__init__()
 
         self.nnlayers = nn.Sequential(
-            nn.Linear(first_layer_dim, 512),
-            nn.BatchNorm1d(512)
+            nn.Linear(first_layer_dim, out_dim),
+            nn.BatchNorm1d(out_dim)
         )
     
     def forward(self, X):
         self.nnlayers(X)
 
+class image_encoder(nn.Module):
+    def __init__(self, first_layer_dim=768, out_dim=512):
+        super(image_encoder, self).__init__()
 
+        self.nnlayers = nn.Sequential(
+            nn.Linear(first_layer_dim, out_dim),
+            nn.BatchNorm1d(out_dim)
+        )
+    
+    def forward(self, X):
+        self.nnlayers(X)
+
+class joint_model(nn.Module):
+    def __init__(self, in_dim=512*2, out_dim=128):
+        super(joint_model, self).__init__()
+
+        self.nn_layers = nn.Sequential(
+            nn.Linear(in_dim, )
+        )
+    
+    def process_data(self, img_embed, omics_embed):
+        pass
+
+    def forward(self, img_embed, omics_embed):
+        pass
 
         
 
