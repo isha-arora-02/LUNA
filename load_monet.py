@@ -18,9 +18,6 @@ for param in model.parameters():
 # set in eval mode
 model.eval()
 
-def create_dataloader():
-    pass
-
 def get_img_embeddings(images: list, device='cpu'):
     """
     Obtain embeddings for each image using MONET model.
@@ -40,6 +37,7 @@ def get_img_embeddings(images: list, device='cpu'):
     
     embeddings = embeddings_tmp.pooler_output
     embeddings = F.normalize(embeddings, dim=1)
+    return embeddings
 
 # does the deseq? -- nope add as separate fn - change the 
 class transcriptomics_encoder(nn.Module):
