@@ -32,7 +32,7 @@ def get_img_embeddings(images: list, device='cpu'):
     embeddings: MONET embeddings of shape (batch_size, 768)
     """
 
-    processed_imgs = processor(images=images, return_tensors="pt").to_device()
+    processed_imgs = processor(images=images, return_tensors="pt").to(device)
 
     with torch.no_grad():
         embeddings_tmp = model(**processed_imgs)
@@ -40,18 +40,18 @@ def get_img_embeddings(images: list, device='cpu'):
     embeddings = embeddings_tmp.pooler_output
     embeddings = F.normalize(embeddings, dim=1)
 
-# does the deseq? -- nope add as separate fn
+# does the deseq? -- nope add as separate fn - change the 
 class transcriptomics_encoder(nn.Module):
-    def __init__(self, first_layer_dim=768, out_dim=512):
+    def __init__(self, num_genes=768, out_dim=512):
         super(transcriptomics_encoder, self).__init__()
 
         self.nnlayers = nn.Sequential(
-            nn.Linear(first_layer_dim, out_dim),
+            nn.Linear(num_genes, out_dim),
             nn.BatchNorm1d(out_dim)
         )
     
     def forward(self, X):
-        self.nnlayers(X)
+        return self.nnlayers(X)
 
 class image_encoder(nn.Module):
     def __init__(self, first_layer_dim=768, out_dim=512):
@@ -63,21 +63,43 @@ class image_encoder(nn.Module):
         )
     
     def forward(self, X):
-        self.nnlayers(X)
+        return self.nnlayers(X)
 
 class joint_model(nn.Module):
-    def __init__(self, in_dim=512*2, out_dim=128):
+    def __init__(self, in_dim=512, num_classes=9):
         super(joint_model, self).__init__()
 
-        self.nn_layers = nn.Sequential(
-            nn.Linear(in_dim, )
+        self.joint_layers = nn.Sequential(
+            nn.Linear(in_dim*2, 256),
+            nn.BatchNorm1d(256),
+            nn.GELU(),
+            nn.Dropout(0.2),
+            nn.Linear(256, num_classes)
+)
+
+        self.img_skip_connect = nn.Sequential(
+            nn.Linear(in_dim, num_classes)
         )
-    
-    def process_data(self, img_embed, omics_embed):
-        pass
+
+        self.omics_skip_connect = nn.Sequential(
+            nn.Linear(in_dim, num_classes)
+        )
+
+        self.prediction_head = nn.Linear(3, 1, bias=False)
 
     def forward(self, img_embed, omics_embed):
-        pass
+        pred_img   = self.img_skip_connect(img_embed)            
+        pred_omics = self.omics_skip_connect(omics_embed)               
+        pred_joint = self.joint_layers(
+            torch.cat([img_embed, omics_embed], dim=1)                       
+        ) 
+
+        final_pred = self.prediction_head(
+            torch.cat([pred_img, pred_omics, pred_joint], dim=1)            
+        )                                                                  
+
+        return final_pred
+
 
         
 
