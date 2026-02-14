@@ -1,0 +1,60 @@
+name: luna
+
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python
+  - pip
+
+  - numpy
+  - pandas
+  - scipy
+  - scikit-learn
+
+  - pytorch
+  - torchvision
+  - torchaudio
+  - cpuonly
+
+  - matplotlib
+  - seaborn
+
+  - jupyterlab
+  - ipywidgets
+
+  - pip:
+    # Hugging Face 
+    - transformers
+    - datasets
+    - huggingface_hub
+    - accelerate
+    - timm                          # ViT backbone deps for MONET
+
+    - Pillow
+    - opencv-python
+    - albumentations            
+
+    # RNA-seq
+    - anndata                     
+    - scanpy                    
+
+    # Loss
+    - pytorch-metric-learning     
+
+    # Experiment tracking
+    - wandb
+    - tensorboard
+
+    - tqdm
+    - einops              
+    - torchmetrics         
+    - lightning                
+
+    # ISIC dataset access
+    - isic-cli              
+
+variables:
+  TOKENIZERS_PARALLELISM: "false"  # suppresses HuggingFace tokenizer warnings
