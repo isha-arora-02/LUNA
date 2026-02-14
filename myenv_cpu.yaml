@@ -30,16 +30,17 @@ dependencies:
 
   - ftfy
   - regex
+  - transformers
+  - tokenizers
+  - huggingface_hub
+  - pillow
+  
 
   - pip:
     # Hugging Face 
-    - transformers
-    - datasets
-    - huggingface_hub
     - accelerate
     - timm                          # ViT backbone deps for MONET
 
-    - Pillow
     - opencv-python
     - albumentations            
 
