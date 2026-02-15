@@ -4,21 +4,24 @@ from torch import nn
 import torch.nn.functional as F
 from pytorch_metric_learning.losses import SupConLoss
 
-processor = AutoProcessor.from_pretrained("suinleelab/monet")
-model = AutoModelForZeroShotImageClassification.from_pretrained("suinleelab/monet")
+def get_monet_model():
+    processor = AutoProcessor.from_pretrained("suinleelab/monet")
+    model = AutoModelForZeroShotImageClassification.from_pretrained("suinleelab/monet")
 
-# weights = model.state_dict()
-# print(type(weights))
-# print(weights.keys())
+    # weights = model.state_dict()
+    # print(type(weights))
+    # print(weights.keys())
 
-# freeze weights
-for param in model.parameters():
-    param.requires_grad = False
+    # freeze weights
+    for param in model.parameters():
+        param.requires_grad = False
 
-# set in eval mode
-model.eval()
+    # set in eval mode
+    model.eval()
 
-def get_img_embeddings(images: list, device='cpu'):
+    return model, processor
+
+def get_img_embeddings(model, processor, images: list, device='cpu'):
     """
     Obtain embeddings for each image using MONET model.
 
@@ -29,7 +32,6 @@ def get_img_embeddings(images: list, device='cpu'):
     Returns:
     embeddings: MONET embeddings of shape (batch_size, 768)
     """
-
     processed_imgs = processor(images=images, return_tensors="pt").to(device)
 
     with torch.no_grad():
