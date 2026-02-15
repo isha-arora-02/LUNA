@@ -3,26 +3,24 @@ from torch.utils.data import DataLoader, Dataset
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from tqdm import tqdm
-from load_monet import image_encoder, transcriptomics_encoder, joint_model, get_img_embeddings, compute_loss, predict, get_monet_model
+from load_monet import image_encoder, transcriptomics_encoder, joint_model, get_img_embeddings, compute_loss, predict, get_monet_model, precompute_img_embeddings
 
 
 class DatasetPrep(Dataset):
-    def __init__(self, images, gene_expression, labels):
-        self.images = images
+    def __init__(self, img_embeddings, gene_expression, labels):
+        self.img_embeddings = img_embeddings
         self.gene_expression = gene_expression
         self.labels = labels
-
-        # add the diff exp gene stuff here
     
     def __len__(self):
         return len(self.labels)
     
     def __getitem__(self, idx):
-        return self.images[idx], self.gene_expression[idx], self.labels[idx]
+        return self.img_embeddings[idx], self.gene_expression[idx], self.labels[idx]
     
 
 class TrainValLUNA:
-    def __init__(self, num_classes=9, img_dim=768, omics_dim=768, embed_dim=512, lr=1e-4):
+    def __init__(self, num_classes=6, img_dim=768, omics_dim=768, embed_dim=512, lr=1e-4):
         """
         Parameters:
         num_classes: number of predicted classes
@@ -73,6 +71,9 @@ class TrainValLUNA:
 
         self.best_val_loss = float('inf')
 
+    def precompute_monet_embeddings(self, images, batch_size):
+        return precompute_img_embeddings(images, self.monet_model, self.monet_processor, self.device, batch_size)
+
     def train_model(self, train_loader, val_loader, num_epochs):
         """
         Train the model over multiple epochs and print statistics at each iteration.
@@ -99,12 +100,13 @@ class TrainValLUNA:
             train_correct = 0
             train_total = 0
             
-            for images, gene_expr, y_val in tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs}"):
+            for img_embeddings, gene_expr, y_val in tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs}"):
+                # get precomputed img embeddings
+                img_embeddings = img_embeddings.to(self.device)
+
+                # to device for expr and y labels
                 gene_expr = gene_expr.to(self.device)
                 y_val = y_val.to(self.device)
-                
-                # get processed img data
-                img_embeddings = get_img_embeddings(self.monet_model, self.monet_processor, images, device=self.device)
                 
                 # forward pass through models
                 img_embed = self.img_encoder(img_embeddings)
@@ -179,13 +181,13 @@ class TrainValLUNA:
         
         # don't update weights
         with torch.no_grad():
-            for images, gene_expr, y_val in val_loader:
+            for img_embeddings, gene_expr, y_val in val_loader:
                 # transfer data to correct device
                 gene_expr = gene_expr.to(self.device)
                 y_val = y_val.to(self.device)
                 
                 # get embeddings and fwd pass through model for inference
-                img_embeddings = get_img_embeddings(self.monet_model, self.monet_processor, images, device=self.device)
+                img_embeddings = img_embeddings.to(self.device)
                 img_embed = self.img_encoder(img_embeddings)
                 omics_embed = self.omics_encoder(gene_expr)
                 final_pred = self.joint_model(img_embed, omics_embed)
@@ -207,7 +209,7 @@ class TrainValLUNA:
 
 
 if __name__ == "__main__":
-    # load the datasets
+    # load the datasets - ensure they are in torch
     train_images = ...  
     train_gene_expr = ...
     train_labels = ...
@@ -216,16 +218,23 @@ if __name__ == "__main__":
     val_gene_expr = ...
     val_labels = ...
 
+    train_instance = TrainValLUNA(num_classes=6)
+
+    print("Pre-computing train embeddings...")
+    train_img_embs = train_instance.precompute_monet_embeddings(train_images, batch_size=64)
+
+    print("Pre-computing val embeddings...")
+    val_img_embs   = train_instance.precompute_monet_embeddings(val_images, batch_size=64)
+
     # prepare datasets
-    train_dataset = DatasetPrep(train_images, train_gene_expr, train_labels)
-    val_dataset = DatasetPrep(val_images, val_gene_expr, val_labels)
+    train_dataset = DatasetPrep(train_img_embs, train_gene_expr, train_labels)
+    val_dataset = DatasetPrep(val_img_embs, val_gene_expr, val_labels)
     
     # create dataloaders
-    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=4)
-    val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=4, pin_memory=True, prefetch_factor=1)
+    val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False, num_workers=4, pin_memory=True, prefetch_factor=1)
     
     # run training and eval
-    train_instance = TrainValLUNA()
     img_enc, omics_enc, joint = train_instance.train_model(
         train_loader, 
         val_loader, 

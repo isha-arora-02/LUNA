@@ -3,6 +3,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from pytorch_metric_learning.losses import SupConLoss
+from tqdm import tqdm
 
 def get_monet_model():
     processor = AutoProcessor.from_pretrained("suinleelab/monet")
@@ -41,7 +42,33 @@ def get_img_embeddings(model, processor, images: list, device='cpu'):
     embeddings = F.normalize(embeddings, dim=1)
     return embeddings
 
-# does the deseq? -- nope add as separate fn - change the 
+
+def precompute_img_embeddings(images: list, monet_model, monet_processor, device, batch_size=64):
+    """
+    Pre-compute all MONET embeddings once before training.
+
+    Parameters:
+    images: list of image objs
+    monet_model: MONET model
+    monet_processor: MONET processor
+    device: which device to run on 
+    batch_size: number of samples per batch
+
+    Returns:
+    precomputed_embeddings: all the embeddings from the MONET model for all batches
+    """
+    precomputed_embeddings = []
+    monet_model.eval()
+    
+    for i in tqdm(range(0, len(images), batch_size), desc="pre-computing MONET embeddings"):
+        batch = images[i:i+batch_size]
+        with torch.no_grad():
+            emb = get_img_embeddings(monet_model, monet_processor, batch, device=device)
+        precomputed_embeddings.append(emb.cpu())  
+
+    return torch.cat(precomputed_embeddings, dim=0)  
+
+
 class transcriptomics_encoder(nn.Module):
     def __init__(self, num_genes=768, out_dim=512):
         super(transcriptomics_encoder, self).__init__()
@@ -67,7 +94,7 @@ class image_encoder(nn.Module):
         return self.nnlayers(X)
 
 class joint_model(nn.Module):
-    def __init__(self, in_dim=512, num_classes=9):
+    def __init__(self, in_dim=512, num_classes=6):
         super(joint_model, self).__init__()
 
         self.joint_layers = nn.Sequential(
@@ -86,7 +113,7 @@ class joint_model(nn.Module):
             nn.Linear(in_dim, num_classes)
         )
 
-        self.prediction_head = nn.Linear(3, 1, bias=False)
+        self.prediction_head = nn.Linear(3*num_classes, num_classes, bias=False)
 
     def forward(self, img_embed, omics_embed):
         pred_img   = self.img_skip_connect(img_embed)            
@@ -126,7 +153,7 @@ def compute_loss(final_pred, img_embed, omics_embed, y_val, lambda_val=0.7):
     ce     = nn.CrossEntropyLoss()
     supcon = SupConLoss(temperature=0.1)
 
-    loss_ce = ce(final_pred.squeeze(1), y_val.float())
+    loss_ce = ce(final_pred, y_val.long())
 
     img_z   = F.normalize(img_embed,   dim=1)
     omics_z = F.normalize(omics_embed, dim=1)
