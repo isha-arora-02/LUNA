@@ -2,6 +2,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch.utils.data import WeightedRandomSampler
 from tqdm import tqdm
 from load_monet import image_encoder, transcriptomics_encoder, joint_model, get_img_embeddings, compute_loss, predict, get_monet_model, precompute_img_embeddings
 
@@ -212,23 +213,27 @@ if __name__ == "__main__":
     # load the datasets - ensure they are in torch
     train_images = ...  
     train_gene_expr = ...
-    train_labels = ...
+    train_images_labels = ...
+    train_gene_expr_labels = ...
 
     val_images = ...
     val_gene_expr = ...
-    val_labels = ...
+    val_images_labels = ...
+    val_gene_expr_labels = ...
 
     train_instance = TrainValLUNA(num_classes=6)
 
     print("Pre-computing train embeddings...")
     train_img_embs = train_instance.precompute_monet_embeddings(train_images, batch_size=64)
+    torch.save(train_img_embs, "train_precomputed_monet_embeddings.pt")
 
     print("Pre-computing val embeddings...")
     val_img_embs   = train_instance.precompute_monet_embeddings(val_images, batch_size=64)
+    torch.save(val_img_embs, "val_precomputed_monet_embeddings.pt")
 
     # prepare datasets
-    train_dataset = DatasetPrep(train_img_embs, train_gene_expr, train_labels)
-    val_dataset = DatasetPrep(val_img_embs, val_gene_expr, val_labels)
+    train_dataset = DatasetPrep(train_img_embs, train_gene_expr, train_images_labels)
+    val_dataset = DatasetPrep(val_img_embs, val_gene_expr, val_images_labels)
     
     # create dataloaders
     train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=4, pin_memory=True, prefetch_factor=1)
@@ -238,5 +243,7 @@ if __name__ == "__main__":
     img_enc, omics_enc, joint = train_instance.train_model(
         train_loader, 
         val_loader, 
+        img_dim=768, 
+        omics_dim=1096,
         num_epochs=50
     )
