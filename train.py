@@ -4,6 +4,7 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import WeightedRandomSampler
 from tqdm import tqdm
+import pickle
 from load_monet import image_encoder, transcriptomics_encoder, joint_model, get_img_embeddings, compute_loss, predict, get_monet_model, precompute_img_embeddings
 
 
@@ -67,7 +68,7 @@ class TrainValLUNA:
             'train_loss': [],
             'train_acc': [],
             'val_loss': [],
-            'val_acc': []
+            'val_acc': [],
         }
 
         self.best_val_loss = float('inf')
@@ -101,7 +102,7 @@ class TrainValLUNA:
             train_correct = 0
             train_total = 0
             
-            for img_embeddings, gene_expr, y_val in tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs}"):
+            for img_embeddings, gene_expr, y_val in tqdm(train_loader, desc=f"Epoch {epoch}"):
                 # get precomputed img embeddings
                 img_embeddings = img_embeddings.to(self.device)
 
@@ -137,13 +138,17 @@ class TrainValLUNA:
             # print stats so far
             train_loss /= len(train_loader)
             train_acc = 100 * train_correct / train_total
-            print(f"Epoch {epoch+1}: Train Loss={train_loss:.4f}, Train Acc={train_acc:.2f}%, "
+            print(f"Epoch {epoch}: Train Loss={train_loss:.4f}, Train Acc={train_acc:.2f}%, "
                 f"Val Loss={val_loss:.4f}, Val Acc={val_acc:.2f}%")
             
             self.history['train_loss'].append(train_loss) 
             self.history['train_acc'].append(train_acc)
             self.history['val_loss'].append(val_loss)
             self.history['val_acc'].append(val_acc)
+
+            with open('train_val_acc_history.pkl', 'wb') as f:
+                pickle.dump(self.history, f)
+
                         
             # saving best model
             if val_loss < self.best_val_loss:
