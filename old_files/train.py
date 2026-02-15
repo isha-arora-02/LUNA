@@ -7,7 +7,7 @@ from tqdm import tqdm
 import pickle
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from load_monet import image_encoder, transcriptomics_encoder, joint_model, get_img_embeddings, compute_loss, predict, get_monet_model, precompute_img_embeddings
+from old_files.load_monet import image_encoder, transcriptomics_encoder, joint_model, get_img_embeddings, compute_loss, predict, get_monet_model, precompute_img_embeddings
 
 
 class DatasetPrep(Dataset):
