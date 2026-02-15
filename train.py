@@ -249,12 +249,12 @@ if __name__ == "__main__":
     images_dat_lst = ...
     images_labels_lst_tensor = ...
 
-    # label_mapping = {
-    #     'classes': pd.Categorical(gene_expr_pheno['disease_status']).categories.tolist(),
-    #     'label_to_idx': dict(enumerate(pd.Categorical(gene_expr_pheno['disease_status']).categories))
-    #     }
-    # with open('label_mapping.pkl', 'wb') as f:
-    #     pickle.dump(label_mapping, f)
+    label_mapping = {
+        'classes': pd.Categorical(gene_expr_pheno['disease_status']).categories.tolist(),
+        'label_to_idx': dict(enumerate(pd.Categorical(gene_expr_pheno['disease_status']).categories))
+        }
+    with open('label_mapping.pkl', 'wb') as f:
+        pickle.dump(label_mapping, f)
 
     # ensure labels were correctly generated 
     assert len(images_labels_lst_tensor) == len(gene_expr_labels_tensor), "Label length mismatch"
