@@ -194,7 +194,7 @@ class TrainValLUNA:
                 final_pred = self.joint_model(img_embed, omics_embed)
                 
                 # calculate loss
-                loss = compute_loss(final_pred, img_embed, omics_embed, y_val)
+                loss = compute_loss(final_pred, img_embed, omics_embed, y_val, lambda_val=0.7)
                 val_loss += loss.item()
                 
                 # track accuracy metrics
@@ -221,7 +221,12 @@ if __name__ == "__main__":
     val_images_labels = ...
     val_gene_expr_labels = ...
 
-    train_instance = TrainValLUNA(num_classes=6)
+    assert train_images.shape[1] == 768, f"Expected 768 dims, got {train_images.shape[1]}"
+    assert train_gene_expr.shape[1] == 1096, f"Expected 1096 dims, got {train_gene_expr.shape[1]}"
+    assert len(train_images_labels) == len(train_gene_expr_labels), "Label length mismatch"
+    assert train_images_labels == train_gene_expr_labels, "Label value mismatch"
+
+    train_instance = TrainValLUNA(num_classes=6, img_dim=768, omics_dim=1096)
 
     print("Pre-computing train embeddings...")
     train_img_embs = train_instance.precompute_monet_embeddings(train_images, batch_size=64)
@@ -243,7 +248,5 @@ if __name__ == "__main__":
     img_enc, omics_enc, joint = train_instance.train_model(
         train_loader, 
         val_loader, 
-        img_dim=768, 
-        omics_dim=1096,
         num_epochs=50
     )
