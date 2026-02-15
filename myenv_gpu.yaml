@@ -52,7 +52,9 @@ dependencies:
     # RNA-seq
     - anndata                     
     - scanpy 
-    - pydeseq2                   
+    - pydeseq2    
+
+    - pickle               
 
     # Loss
     - pytorch-metric-learning     

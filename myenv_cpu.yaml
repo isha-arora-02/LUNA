@@ -49,6 +49,8 @@ dependencies:
     - scanpy   
     - pydeseq2         
 
+    - pickle
+
     # Loss
     - pytorch-metric-learning     
 
