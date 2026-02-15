@@ -46,7 +46,8 @@ dependencies:
 
     # RNA-seq
     - anndata                     
-    - scanpy                    
+    - scanpy   
+    - pydeseq2         
 
     # Loss
     - pytorch-metric-learning     
