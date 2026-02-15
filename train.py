@@ -5,6 +5,8 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import WeightedRandomSampler
 from tqdm import tqdm
 import pickle
+import pandas as pd
+from sklearn.model_selection import train_test_split
 from load_monet import image_encoder, transcriptomics_encoder, joint_model, get_img_embeddings, compute_loss, predict, get_monet_model, precompute_img_embeddings
 
 
@@ -157,10 +159,24 @@ class TrainValLUNA:
                     'img_encoder': self.img_encoder.state_dict(),
                     'omics_encoder': self.omics_encoder.state_dict(),
                     'joint_model': self.joint_model.state_dict(),
+                    'optimizer': self.optimizer.state_dict(),
+                    'scheduler': self.scheduler.state_dict(),
                     'epoch': epoch,
                     'val_loss': val_loss
                 }, 'best_model.pt')
                 print(f"Saved the best model so far with val_loss={val_loss:.4f}")
+
+
+            if (epoch + 1) % 5 == 0:
+                torch.save({
+                    'img_encoder': self.img_encoder.state_dict(),
+                    'omics_encoder': self.omics_encoder.state_dict(),
+                    'joint_model': self.joint_model.state_dict(),
+                    'optimizer': self.optimizer.state_dict(),
+                    'scheduler': self.scheduler.state_dict(),
+                    'epoch': epoch,
+                    'history': self.history
+                }, f'checkpoint_epoch_{epoch}.pt')
         
         return self.img_encoder, self.omics_encoder, self.joint_model
 
@@ -215,23 +231,49 @@ class TrainValLUNA:
 
 
 if __name__ == "__main__":
-    # load the datasets - ensure they are in torch
-    train_images = ...  
-    train_gene_expr = ...
-    train_images_labels = ...
-    train_gene_expr_labels = ...
+    # load the gene expression datasets - ensure they are in torch
+    gene_expr_dat = pd.read_csv("gene_expr_data/mergedExpr.csv", index_col=0).T
+    gene_expr_dat_tensor = torch.from_numpy(gene_expr_dat.values).float()
 
-    val_images = ...
-    val_gene_expr = ...
-    val_images_labels = ...
-    val_gene_expr_labels = ...
+    gene_expr_pheno = pd.read_csv("gene_expr_data/mergedPheno.csv", index_col=0)
+    gene_expr_pheno["disease_status_ind"] = pd.Categorical(gene_expr_pheno['disease_status']).codes
+    gene_expr_labels_tensor = torch.tensor(gene_expr_pheno['disease_status_ind'].values, dtype=torch.long)
 
-    assert train_images.shape[1] == 768, f"Expected 768 dims, got {train_images.shape[1]}"
-    assert train_gene_expr.shape[1] == 1096, f"Expected 1096 dims, got {train_gene_expr.shape[1]}"
-    assert len(train_images_labels) == len(train_gene_expr_labels), "Label length mismatch"
-    assert train_images_labels == train_gene_expr_labels, "Label value mismatch"
+    # print statments to check
+    print(f"Gene expression shape: {gene_expr_dat_tensor.shape}")
+    print(f"Number of samples: {len(gene_expr_labels_tensor)}")
+    print(f"Class distribution: {torch.bincount(gene_expr_labels_tensor)}")
+    print(f"Classes: {pd.Categorical(gene_expr_pheno['disease_status']).categories.tolist()}")
 
-    train_instance = TrainValLUNA(num_classes=6, img_dim=768, omics_dim=1096)
+    # load the image datasets - ensure they are in torch
+    images_dat_lst = ...
+    images_labels_lst_tensor = ...
+
+    # label_mapping = {
+    #     'classes': pd.Categorical(gene_expr_pheno['disease_status']).categories.tolist(),
+    #     'label_to_idx': dict(enumerate(pd.Categorical(gene_expr_pheno['disease_status']).categories))
+    #     }
+    # with open('label_mapping.pkl', 'wb') as f:
+    #     pickle.dump(label_mapping, f)
+
+    # ensure labels were correctly generated 
+    assert len(images_labels_lst_tensor) == len(gene_expr_labels_tensor), "Label length mismatch"
+    assert torch.equal(images_labels_lst_tensor, gene_expr_labels_tensor), "Label value mismatch"
+
+    # get train test splits
+    train_images, val_images, \
+    train_gene_expr, val_gene_expr, \
+    train_images_labels, val_images_labels = train_test_split(
+        images_dat_lst,
+        gene_expr_dat_tensor,
+        gene_expr_labels_tensor,
+        test_size=0.25,
+        stratify=gene_expr_labels_tensor.numpy(),
+        random_state=42
+    )
+
+    # initialize training class instance
+    train_instance = TrainValLUNA(num_classes=6, img_dim=768, omics_dim=663)
 
     print("Pre-computing train embeddings...")
     train_img_embs = train_instance.precompute_monet_embeddings(train_images, batch_size=64)
@@ -240,6 +282,10 @@ if __name__ == "__main__":
     print("Pre-computing val embeddings...")
     val_img_embs   = train_instance.precompute_monet_embeddings(val_images, batch_size=64)
     torch.save(val_img_embs, "val_precomputed_monet_embeddings.pt")
+
+    # ensure embeddings are the right shape
+    assert train_img_embs.shape[1] == 768, f"Expected 768 dims, got {train_img_embs.shape[1]}"
+    assert train_gene_expr.shape[1] == 663, f"Expected 663 dims, got {train_gene_expr.shape[1]}"
 
     # prepare datasets
     train_dataset = DatasetPrep(train_img_embs, train_gene_expr, train_images_labels)
